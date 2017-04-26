@@ -200,20 +200,20 @@ class STVHareClarkTally(BaseTally):
                 # list of votes to share
                 # all the ballots that have this candidate as first option,
                 # except for those that only have one option selected
-                votes_to_share =
-                    self.get_votes_to_share(ballots, candidate['candidate'])
+                votes_to_share = self.get_votes_to_share(
+                    ballots,
+                    candidate['candidate'])
                 rest_to_share = candidate['transfer_value'] - quota
                 # transfer rest value to second candidates
                 for second_candidate in candidates:
                     # number of times the second candidate appears as second
                     # in votes_to_share
-                    times_appearing_second =
-                        self.ocurrence_second_candidate(
-                            votes_to_share,
-                            second_candidate['candidate'])
-                    increased_value =
-                        rest_to_share *
-                        times_appearing_second *
+                    times_appearing_second = self.ocurrence_second_candidate(
+                        votes_to_share,
+                        second_candidate['candidate'])
+                    increased_value = \
+                        rest_to_share * \
+                        times_appearing_second * \
                         len(votes_to_share)
                     second_candidate['transfer_value'] += increased_value
                 # remove all occurences of the candidate in the ballots
@@ -223,20 +223,20 @@ class STVHareClarkTally(BaseTally):
         if not someone_surpasses_quota:
             # get last candidate, removing it from the list of candidates
             last_candidate = candidates.pop()
-            votes_to_share =
-                self.get_votes_to_share(ballots, last_candidate['candidate'])
+            votes_to_share = self.get_votes_to_share(
+                ballots,
+                last_candidate['candidate'])
             last_cand_transfer_value = last_candidate['transfer_value']
             # transfer value to second candidates
             for second_candidate in candidates:
                 # number of times the second candidate appears as second
                 # in votes_to_share
-                times_appearing_second = 
-                    self.ocurrence_second_candidate(
-                        votes_to_share,
-                        second_candidate['candidate'])
-                increased_value =
-                    last_cand_transfer_value *
-                    times_appearing_second *
+                times_appearing_second = self.ocurrence_second_candidate(
+                    votes_to_share,
+                    second_candidate['candidate'])
+                increased_value = \
+                    last_cand_transfer_value * \
+                    times_appearing_second * \
                     len(votes_to_share)
                 second_candidate['transfer_value'] += increased_value
             # remove all occurences of the candidate in the ballots
