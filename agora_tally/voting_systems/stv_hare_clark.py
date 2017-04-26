@@ -182,6 +182,12 @@ class STVHareClarkTally(BaseTally):
             round_data.continue_round = False
             return
 
+        # increase round count
+        round_data.round_count += 1
+        # initialize round info with the last round
+        for index, answer in enumerate(round_data.question['answers']):
+            answer['rounds'].append(answer['rounds'][-1])
+
         someone_surpasses_quota = False
         for candidate in round_data.candidates[:]:
             # if there are no remaining winner seats, we have nothing to do
@@ -193,14 +199,22 @@ class STVHareClarkTally(BaseTally):
             # are winners
             if len(round_data.candidates) == round_data.remaining_vacant_seats:
                 for candidate in round_data.candidates[:]:
+                    candidate_index = candidate['candidate']
+                    answer = round_data.question['answers'][candidate_index]
+                    answer['rounds'][-1] = candidate['transfer_value']
+                    answer['decisive_round'] = round_data.round_count
                     round_data.candidates.remove(candidate)
-                    round_data.winners.append(candidate['candidate'])
+                    round_data.winners.append(candidate_index)
                 round_data.remaining_vacant_seats = 0
                 return
 
             if candidate['transfer_value'] > round_data.quota:
                 someone_surpasses_quota = True
-                round_data.winners.append(candidate['candidate'])
+                candidate_index = candidate['candidate']
+                answer = round_data.question['answers'][candidate_index]
+                answer['rounds'][-1] = candidate['transfer_value']
+                answer['decisive_round'] = round_data.round_count
+                round_data.winners.append(candidate_index)
                 round_data.remaining_vacant_seats -= 1
                 round_data.candidates.remove(candidate)
                 # list of votes to share
@@ -208,7 +222,7 @@ class STVHareClarkTally(BaseTally):
                 # except for those that only have one option selected
                 votes_to_share = self.get_votes_to_share(
                     round_data.ballots,
-                    candidate['candidate'])
+                    candidate_index)
                 rest_to_share = candidate['transfer_value'] - round_data.quota
                 # transfer rest value to second candidates
                 for second_candidate in round_data.candidates:
@@ -225,15 +239,19 @@ class STVHareClarkTally(BaseTally):
                 # remove all occurences of the candidate in the ballots
                 self.remove_option_from_ballots(
                     round_data.ballots,
-                    candidate['candidate'])
+                    candidate_index)
 
         # if no candidate surpasses the quota, do an elimination round
         if not someone_surpasses_quota and len(round_data.candidates) > 0:
             # get last candidate, removing it from the list of candidates
             last_candidate = round_data.candidates.pop()
+            candidate_index = last_candidate['candidate']
+            answer = round_data.question['answers'][candidate_index]
+            answer['rounds'][-1] = last_candidate['transfer_value']
+            answer['decisive_round'] = round_data.round_count
             votes_to_share = self.get_votes_to_share(
                 round_data.ballots,
-                last_candidate['candidate'])
+                candidate_index)
             last_cand_transfer_value = last_candidate['transfer_value']
             # transfer value to second candidates
             for second_candidate in round_data.candidates:
@@ -250,24 +268,24 @@ class STVHareClarkTally(BaseTally):
             # remove all occurences of the candidate in the ballots
             self.remove_option_from_ballots(
                 round_data.ballots,
-                last_candidate['candidate'])
+                candidate_index)
+
+        # set remaining candidates round transfer value
+        for candidate in round_data.candidates:
+            candidate_index = candidate['candidate']
+            answer = round_data.question['answers'][candidate_index]
+            answer['rounds'][-1] = candidate['transfer_value']
 
     def stv_tally(self, question, ballots):
         voters_by_position = [0] * question['max']
         for answer in question['answers']:
             answer['total_count'] = 0
+            answer['rounds'] = [] # transfer value for each answer on each round
+            answer['decisive_round'] = None # round where it was set to lose or win
             answer['winner_position'] = None
 
         #set total votes
         question['totals']['valid_votes'] = len(ballots)
-
-        # list of winners
-        winners = []
-
-        # number of vacant seats for winners
-        # this variable will change each time a winner is added to 
-        # the winners list
-        remaining_vacant_seats = question['num_winners']
 
         # list of candidates that, at this time, are not either winners or losers
         candidates = [
@@ -280,27 +298,27 @@ class STVHareClarkTally(BaseTally):
 
         # quota
         quota = (len(ballots) + 1) / (question['num_winners'] + 1)
-        
-        # fill first transfer value with the times each candidate 
-        # appears as the first option
-        for ballot in ballots:
-          candidates[ballot[0]]['transfer_value'] += 1.0
 
-                
         round_data = RoundData(
               question,
               ballots,
-              winners,
-              remaining_vacant_seats,
+              [],                     # winners list
+              question['num_winners'],# number of vacant seats for winners
               candidates,
               quota,
-              0, # round
-              True
+              0,                      # round_count
+              True                    # continue_round
         )
         
+        # fill first transfer value with the times each candidate 
+        # appears as the first option
+        for ballot in round_data.ballots:
+            round_data.candidates[ballot[0]]['transfer_value'] += 1.0
+        # fill round 0 info
+        for index, answer in enumerate(round_data.question['answers']):
+             answer['rounds'].append(round_data.candidates[index]['transfer_value'])
+        
         while round_data.continue_round:
-            # increase round count
-            round_data.round_count += 1
             # order candidates by increasing name and decreasing transfer value
             round_data.candidates = sorted(
                 round_data.candidates,
