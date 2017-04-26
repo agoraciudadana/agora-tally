@@ -71,7 +71,7 @@ class RoundData(object):
         self.remaining_vacant_seats = remaining_vacant_seats
         self.candidates = candidates
         self.quota = quota
-        self.round_count  round_count
+        self.round_count = round_count
         self.continue_round = continue_round
 
 class STVHareClarkTally(BaseTally):
